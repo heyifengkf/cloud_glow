@@ -12,6 +12,7 @@
     <view class="source-switch">
       <view class="source-option {{dataSource === 'ec' ? 'active' : ''}}" data-src="ec" bindtap="onSwitchSource">ECMWF</view>
       <view class="source-option {{dataSource === 'gfs' ? 'active' : ''}}" data-src="gfs" bindtap="onSwitchSource">GFS</view>
+      <view class="source-option {{dataSource === 'icon' ? 'active' : ''}}" data-src="icon" bindtap="onSwitchSource">ICON</view>
     </view>
   </view>
 
@@ -24,7 +25,8 @@
   <view class="state err" wx:elif="{{error}}">{{error}}</view>
 
   <block wx:else>
-    <view class="card {{item.tone}}" wx:for="{{sections}}" wx:for-item="item" wx:key="key">
+    <view class="card {{item.tone}}" wx:for="{{sections}}" wx:for-item="item" wx:key="key"
+      data-kind="{{item.key}}" bindtap="openSkyMap">
       <view class="card-head">
         <view class="card-icon">{{item.icon}}</view>
         <view class="card-title">
@@ -62,6 +64,11 @@
           <text class="j-k">{{j.k}}</text>
           <text class="j-v">{{j.v}}</text>
         </view>
+      </view>
+
+      <view class="card-link">
+        <text>查看{{item.label}}光线路径云图</text>
+        <text class="link-arrow">›</text>
       </view>
     </view>
   </block>

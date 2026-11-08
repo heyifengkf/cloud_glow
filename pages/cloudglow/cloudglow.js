@@ -84,7 +84,7 @@ Page({
 
   onSwitchSource(e) {
     const src = e.currentTarget.dataset.src;
-    if ((src !== 'ec' && src !== 'gfs') || src === this.data.dataSource) return;
+    if ((src !== 'ec' && src !== 'gfs' && src !== 'icon') || src === this.data.dataSource) return;
     this.setData({ dataSource: src, error: '' });
     this.refresh(true);
   },
@@ -184,6 +184,33 @@ Page({
       console.error('[afterglow] 计算失败', err);
       this.setData({ sections: [], error: (err && err.message) || '数据解析失败' });
     }
+  },
+
+  // 点击朝霞 / 晚霞卡片 → 打开该事件时刻的光线路径云图
+  openSkyMap(e) {
+    const kind = e.currentTarget.dataset.kind;
+    const sel = this._sel || this.resolveSelection();
+    const sec = (this.data.sections || []).find(s => s.key === kind);
+    if (!sec || !Number.isFinite(sec.eventWallMs)) return;
+
+    const q = [
+      `lat=${sel.lat}`,
+      `lon=${sel.lon}`,
+      `name=${encodeURIComponent(sel.name || '')}`,
+      `kind=${kind}`,
+      `t=${sec.eventWallMs}`,
+      `az=${sec.sunAzimuth}`,
+      `el=${sec.sunElevation}`,
+      `src=${this.data.dataSource}`
+    ].join('&');
+
+    wx.navigateTo({
+      url: `/pages/skymap/skymap?${q}`,
+      fail: err => {
+        console.warn('[afterglow] 打开光线路径云图失败', err);
+        wx.showToast({ title: '打开云图失败', icon: 'none' });
+      }
+    });
   },
 
   applyData(raw, sel, selectedDay) {
@@ -304,6 +331,9 @@ Page({
     return {
       key: kind,
       tone: kind,
+      eventWallMs: Math.round(eventWallMs),
+      sunAzimuth: Math.round(pos.azimuth),
+      sunElevation: Math.round(pos.elevation * 10) / 10,
       icon: isDawn ? '🌅' : '🌇',
       label: isDawn ? '朝霞' : '晚霞',
       dateLabel: dayLabel(eventWallMs, nowWall),

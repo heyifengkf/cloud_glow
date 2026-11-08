@@ -100,3 +100,13 @@
 .j-k { font-size:10px; color:#667a90; }
 .j-v { font-size:11px; color:#aac8e0; font-weight:600; }
 .j-wide .j-v { flex:1; min-width:0; word-break:break-all; }
+
+.card { transition: background .15s ease; }
+.card:active { background:#101a2b; }
+.card-link {
+  display:flex; align-items:center; justify-content:space-between;
+  margin-top:10px; padding-top:10px;
+  border-top:1px solid rgba(120,160,200,0.10);
+  font-size:11px; color:#5b9bd5;
+}
+.link-arrow { font-size:15px; line-height:1; color:#5b9bd5; }
