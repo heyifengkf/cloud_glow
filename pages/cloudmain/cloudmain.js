@@ -6,7 +6,7 @@ const request = require('../../utils/request.js');
 const ALT_BY_HPA = {
   1000: 110, 975: 320, 950: 500, 925: 800, 900: 1000, 850: 1500, 800: 1900,
   700: 3000, 600: 4200, 500: 5600, 400: 7200, 300: 9200, 250: 10400,
-  200: 11800, 150: 13600, 100: 16200, 50: 20500
+  200: 11800, 150: 13600, 100: 16200, 70: 18400, 50: 20500, 30: 23900, 20: 26500, 10: 31000
 };
 const MAX_CLOUD_ALT_M = 10000;
 // 非均匀高度轴：低云 0–2km、中云 2–5km、高云 5–10km 各占 1/3 画布高度。
@@ -45,7 +45,8 @@ function fracToAlt(frac) {
 // 各模式需要标出文字刻度的层（2km / 5km 由三等分分界线单独标注）
 const LEVEL_LABELS = {
   ec: { 1000: '110m', 925: '800m', 850: '1.5km', 700: '3km', 300: '9km' },
-  gfs: { 1000: '110m', 950: '500m', 900: '1km', 700: '3km', 300: '9km' }
+  gfs: { 1000: '110m', 950: '500m', 900: '1km', 700: '3km', 300: '9km' },
+  icon: { 1000: '110m', 950: '500m', 900: '1km', 700: '3km', 300: '9km' }
 };
 
 function buildLevels(src) {
@@ -54,7 +55,7 @@ function buildLevels(src) {
   return request.LEVELS_HPAS[key].map(hpa => ({ hpa, alt: ALT_BY_HPA[hpa], albl: labels[hpa] || '' }));
 }
 
-const LEVEL_SETS = { ec: buildLevels('ec'), gfs: buildLevels('gfs') };
+const LEVEL_SETS = { ec: buildLevels('ec'), gfs: buildLevels('gfs'), icon: buildLevels('icon') };
 
 function getLevels(src) {
   return (LEVEL_SETS[src] || LEVEL_SETS.ec)
@@ -70,7 +71,8 @@ const ROWS = [
   { key: 'humid', name: '湿度%' },
   { key: 'precip', name: '降水mm' },
   { key: 'wind', name: '风向' },
-  { key: 'vis', name: '能见度km' }
+  { key: 'vis', name: '能见度km' },
+  { key: 'aod', name: '气溶胶' }
 ];
 
 const CLOUD_ROW_KEY = {
@@ -79,6 +81,8 @@ const CLOUD_ROW_KEY = {
   cloudMid: 'cloud_cover_mid',
   cloudLow: 'cloud_cover_low'
 };
+
+const SRC_LABELS = { ec: 'ECMWF', gfs: 'GFS', icon: 'ICON' };
 
 // ============ 布局常量（单位 css px） ============
 const LABEL_W = 48;
@@ -387,7 +391,7 @@ Page({
       locName: label,
       dataSource: src,
       infoRange: `${fmt(a)}~${fmt(b)}`,
-      infoSrc: src === 'gfs' ? 'GFS' : 'ECMWF'
+      infoSrc: SRC_LABELS[src] || 'ECMWF'
     });
     this.render();
   },
@@ -577,6 +581,12 @@ Page({
           if (v != null) {
             text = String(Math.round(v / 1000));
             color = v > 20000 ? '#a0dca0' : v > 10000 ? '#c8c8a0' : '#dca08c';
+          }
+        } else if (row.key === 'aod') {
+          const v = num(s && s.aerosol_optical_depth, ti);
+          if (v != null) {
+            text = v.toFixed(2);
+            color = v > 0.8 ? '#e0a06c' : v > 0.3 ? '#c8c0a0' : '#a0b8d0';
           }
         }
 

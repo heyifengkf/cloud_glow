@@ -5,6 +5,10 @@
       <view class="h-title">{{title}}</view>
       <view class="h-sub">{{dateLabel}} {{timeLabel}} · {{locName}}</view>
     </view>
+    <view class="h-badge" wx:if="{{verdict}}">
+      <text class="hb-p">{{verdict.probPct}}%</text>
+      <text class="hb-l">{{verdict.level}}</text>
+    </view>
   </view>
 
   <view class="h-note">
@@ -72,6 +76,32 @@
 
   <view class="foot-note">
     采样自 Open-Meteo 网格点（{{srcLabel}}），时间取 {{dateLabel}} {{timeLabel}} 前后最近整点。
-    橙色圆点是观测地点，橙色箭头指向太阳（光线来向），灰色圆环为 20/40/60/80km 距离参考。
+    橙色圆点是观测地点，橙色箭头指向太阳（光线来向），蓝色圆环为 20/40/60/80km 距离参考。
+  </view>
+
+  <view class="logic" wx:if="{{verdict}}">
+    <view class="l-head">
+      <text class="l-title">是否会出现{{verdict.kindLabel}} · 判断逻辑</text>
+      <text class="l-prob">{{verdict.probPct}}% · {{verdict.level}}</text>
+    </view>
+
+    <view class="l-row" wx:for="{{logic}}" wx:for-item="step" wx:key="n">
+      <text class="l-n">{{step.n}}</text>
+      <view class="l-body">
+        <text class="l-k">{{step.k}}</text>
+        <text class="l-v">{{step.v}}</text>
+      </view>
+    </view>
+
+    <view class="l-concl">
+      <text class="l-concl-k">结论</text>
+      <text class="l-concl-v">{{verdict.level}}：Score {{verdict.score}}，仅基于光路与画布两项云量判断</text>
+    </view>
+
+    <view class="l-note">
+      判定只用本图数据：光路上低/中云决定阳光能否过来（门控），地点上空被照亮的中/高云决定有没有“画布”（钟形响应），
+      两者相乘后用同一套 Platt 校准换算成概率（阈值取自 utils/config.js）。
+      未计入能见度、湿度与降水，因此可能与「火烧云」页的概率略有差异。
+    </view>
   </view>
 </view>

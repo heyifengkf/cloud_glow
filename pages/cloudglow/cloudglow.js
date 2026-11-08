@@ -84,7 +84,7 @@ Page({
 
   onSwitchSource(e) {
     const src = e.currentTarget.dataset.src;
-    if ((src !== 'ec' && src !== 'gfs') || src === this.data.dataSource) return;
+    if ((src !== 'ec' && src !== 'gfs' && src !== 'icon') || src === this.data.dataSource) return;
     this.setData({ dataSource: src, error: '' });
     this.refresh(true);
   },
@@ -200,6 +200,7 @@ Page({
       `kind=${kind}`,
       `t=${sec.eventWallMs}`,
       `az=${sec.sunAzimuth}`,
+      `el=${sec.sunElevation}`,
       `src=${this.data.dataSource}`
     ].join('&');
 
@@ -332,6 +333,7 @@ Page({
       tone: kind,
       eventWallMs: Math.round(eventWallMs),
       sunAzimuth: Math.round(pos.azimuth),
+      sunElevation: Math.round(pos.elevation * 10) / 10,
       icon: isDawn ? '🌅' : '🌇',
       label: isDawn ? '朝霞' : '晚霞',
       dateLabel: dayLabel(eventWallMs, nowWall),

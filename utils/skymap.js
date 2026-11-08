@@ -1,6 +1,9 @@
 // 光线路径云图几何：以观测点为原点，沿太阳方位角（光线来向）向外布置采样网格。
 // 只覆盖「光线经过 + 地点上空」的走廊，不做大范围/全国渲染。
 
+const config = require('./config.js');
+const solar = require('./solar.js');
+
 const RAD = Math.PI / 180;
 
 // 沿路径的距离环（km），相邻两环之间的横向区间构成一个云量格子
@@ -14,7 +17,7 @@ const HALF_WIDTH_RATIO = 0.3;
 const LAYER_COLORS = {
   low: [91, 155, 213],
   mid: [155, 123, 213],
-  high: [232, 240, 250]
+  high: [255, 87, 145]
 };
 
 const MAX_KM = RINGS_KM[RINGS_KM.length - 1];
@@ -105,14 +108,134 @@ function legendGradient(layer) {
   return `linear-gradient(90deg, ${soft}, ${solid})`;
 }
 
+// 一个格子的云量：四角（内侧格子为三角）均值
+function cellMean(cell, arr) {
+  let s = 0;
+  for (let i = 0; i < cell.corners.length; i++) s += arr[cell.corners[i]] || 0;
+  return s / cell.corners.length;
+}
+
+// ============ 是否会出现朝霞 / 晚霞的判断 ============
+// 只用本图的云量数据，分三步（阈值全部取自 config.CFG，与「火烧云」页同源）：
+//   ① 照亮高度：由太阳高度角算出云底高于多少 km 才仍被阳光照到
+//   ② 画布评分：观测点上空被照亮的中/高云有多少（钟形：太少无画布，太多糊成灰）
+//   ③ 光路遮挡：沿太阳方位角走廊的低云 / 中云按距离加权，决定阳光能否过来
+// 输出 Score = 门控 × 画布，再用同一套 Platt 校准映射成概率。
+
+const PATH_SCALE_KM = 40;   // 距离权重尺度：40km 外遮挡作用衰减到一半
+const clamp01 = x => Math.max(0, Math.min(1, x));
+const ramp = (x, x0, x1) => clamp01((x - x0) / (x1 - x0));
+const bell = (x, mu, sigma) => Math.exp(-Math.pow((x - mu) / sigma, 2));
+
+function cellMidKm(ring) {
+  return (RINGS_KM[ring] + RINGS_KM[ring + 1]) / 2;
+}
+
+// opts: { sunElevationDeg, cloudTotal? }
+function evaluatePath(grid, vals, opts) {
+  const o = opts || {};
+  const cfg = config.CFG;
+  const g = cfg.gate;
+  const c = cfg.canvas;
+
+  // ---- ③ 光路遮挡：走廊上低云 + midCloudWeight × 中云 ----
+  let wSum = 0;
+  let low = 0;
+  let mid = 0;
+  let high = 0;
+  grid.cells.forEach(cell => {
+    const w = 1 / (1 + cellMidKm(cell.ring) / PATH_SCALE_KM);
+    wSum += w;
+    low += w * cellMean(cell, vals.low || []);
+    mid += w * cellMean(cell, vals.mid || []);
+    high += w * cellMean(cell, vals.high || []);
+  });
+  if (wSum > 0) {
+    low /= wSum;
+    mid /= wSum;
+    high /= wSum;
+  }
+
+  const block = Math.min(1, low + g.midCloudWeight * mid);
+  const gate = 1 - g.lowCloud.soft * ramp(block, g.lowCloud.x0, g.lowCloud.x1);
+
+  // ---- ② 画布评分：观测点上空（走廊第 0 个采样点）----
+  const overhead = {
+    low: (vals.low || [])[0] || 0,
+    mid: (vals.mid || [])[0] || 0,
+    high: (vals.high || [])[0] || 0
+  };
+  // 缺总云量时按独立事件取并集，作为兜底
+  const total = Number.isFinite(o.cloudTotal)
+    ? clamp01(o.cloudTotal)
+    : 1 - (1 - overhead.high) * (1 - overhead.mid) * (1 - overhead.low);
+
+  const canvas = clamp01(
+    c.high.w * bell(overhead.high, c.high.mu, c.high.sigma)
+    + c.mid.w * bell(overhead.mid, c.mid.mu, c.mid.sigma)
+    + c.low.w * bell(overhead.low, c.low.mu, c.low.sigma)
+    + c.total.w * bell(total, c.total.mu, c.total.sigma)
+  );
+
+  const score = clamp01(gate * canvas);
+
+  // ---- 概率校准（与 afterglow.evaluate 相同的 Sigmoid）----
+  const prob = clamp01(1 / (1 + Math.exp(-cfg.prob.k * (score - cfg.prob.theta))));
+  let level = config.PROB_LEVELS[config.PROB_LEVELS.length - 1].label;
+  for (let i = 0; i < config.PROB_LEVELS.length; i++) {
+    if (prob >= config.PROB_LEVELS[i].min) { level = config.PROB_LEVELS[i].label; break; }
+  }
+
+  // ---- ① 照亮高度与各层是否被照亮 ----
+  const el = Number.isFinite(o.sunElevationDeg) ? o.sunElevationDeg : -0.833;
+  const litKm = solar.litAltitudeKm(el);
+  const layers = {
+    high: { z: cfg.layerZ.high, lit: cfg.layerZ.high >= litKm },
+    mid: { z: cfg.layerZ.mid, lit: cfg.layerZ.mid >= litKm },
+    low: { z: cfg.layerZ.low, lit: cfg.layerZ.low >= litKm }
+  };
+
+  // 被照亮云量并集：只有被阳光照到的层才能当画布
+  const litCloud = 1
+    - (1 - (layers.high.lit ? overhead.high : 0))
+    * (1 - (layers.mid.lit ? overhead.mid : 0))
+    * (1 - (layers.low.lit ? overhead.low : 0));
+
+  return {
+    sunElevationDeg: el,
+    litKm,
+    layers,
+    litCloud,
+    overhead: { low: overhead.low, mid: overhead.mid, high: overhead.high, total },
+    path: { low, mid, high, block, scaleKm: PATH_SCALE_KM },
+    gate,
+    canvas,
+    score,
+    prob,
+    probPct: Math.round(prob * 100),
+    level,
+    params: {
+      midCloudWeight: g.midCloudWeight,
+      blockX0: g.lowCloud.x0,
+      blockX1: g.lowCloud.x1,
+      gateSoft: g.lowCloud.soft,
+      probK: cfg.prob.k,
+      probTheta: cfg.prob.theta
+    }
+  };
+}
+
 module.exports = {
   RINGS_KM,
   LATERAL_FRACS,
   MAX_KM,
+  PATH_SCALE_KM,
   destination,
   halfWidthKm,
   buildLightPath,
   corridorCenter,
   cloudColor,
-  legendGradient
+  legendGradient,
+  cellMean,
+  evaluatePath
 };

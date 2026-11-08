@@ -15,6 +15,8 @@ const CLOUD_KEYS = {
   mid: 'cloud_cover_mid',
   high: 'cloud_cover_high'
 };
+// 总云量只用于画布评分，不参与分层渲染
+const TOTAL_KEY = 'cloud_cover';
 
 const DIST_RINGS_KM = [20, 40, 60, 80];
 
@@ -26,7 +28,7 @@ function cacheKey(c) {
   return [c.lat.toFixed(3), c.lon.toFixed(3), Math.round(c.bearing), c.dateStr, c.src].join('|');
 }
 
-// '2026-10-18T17:00' → 站点当地墙钟毫秒（与 tab2 的 wallMs 口径一致）
+// '2026-10-18T17:00' → 站点当地墙钟毫秒（与 cloudglow 的 wallMs 口径一致）
 function wallMs(timeStr) {
   const s = String(timeStr);
   return Date.parse((s.length === 16 ? s + ':00' : s) + 'Z');
@@ -65,6 +67,8 @@ Page({
     circles: [],
     includePoints: [],
     stats: null,
+    verdict: null,
+    logic: [],
     srcLabel: 'ECMWF',
     legendGradient: skymap.legendGradient('low')
   },
@@ -82,8 +86,9 @@ Page({
     const kind = options.kind === 'dawn' ? 'dawn' : 'dusk';
     const eventWall = num(options.t);
     const bearing = num(options.az);
+    const sunEl = num(options.el);
     const eventMs = Number.isFinite(eventWall) ? eventWall : Date.now();
-    const src = options.src === 'gfs' ? 'gfs' : 'ec';
+    const src = options.src === 'gfs' || options.src === 'icon' ? options.src : 'ec';
     const name = options.name ? decodeURIComponent(options.name) : '当前位置';
 
     this._ctx = {
@@ -92,6 +97,7 @@ Page({
       kind,
       eventWall: eventMs,
       bearing: Number.isFinite(bearing) ? ((bearing % 360) + 360) % 360 : 0,
+      sunElevation: Number.isFinite(sunEl) ? sunEl : -0.833,
       src,
       dateStr: solar.wallDateStr(eventMs),
       name
@@ -107,7 +113,7 @@ Page({
       dateLabel: solar.wallDateStr(eventMs).slice(5).replace('-', '/'),
       timeLabel: solar.formatWallTime(eventMs),
       bearingText: `${Math.round(this._ctx.bearing)}°`,
-      srcLabel: src === 'gfs' ? 'GFS' : 'ECMWF'
+      srcLabel: src === 'gfs' ? 'GFS' : src === 'icon' ? 'ICON' : 'ECMWF'
     });
 
     this.buildMap();
@@ -136,9 +142,9 @@ Page({
       latitude: c.lat,
       longitude: c.lon,
       radius: km * 1000,
-      color: '#7aa0c33d',
+      color: '#2f8fffee',
       fillColor: '#00000000',
-      strokeWidth: 1
+      strokeWidth: 2
     })));
 
     this.setData({
@@ -176,7 +182,7 @@ Page({
       return;
     }
 
-    const vals = { low: [], mid: [], high: [] };
+    const vals = { low: [], mid: [], high: [], total: [] };
     rows.forEach(row => {
       const h = (row && row.hourly) || {};
       const idx = nearestHourIndex(h.time, c.eventWall);
@@ -185,11 +191,69 @@ Page({
         const v = idx >= 0 && arr ? Number(arr[idx]) : NaN;
         vals[k].push(Number.isFinite(v) ? Math.max(0, Math.min(1, v / 100)) : 0);
       });
+      const arrT = h[TOTAL_KEY];
+      const vt = idx >= 0 && arrT ? Number(arrT[idx]) : NaN;
+      vals.total.push(Number.isFinite(vt) ? Math.max(0, Math.min(1, vt / 100)) : NaN);
     });
 
     this._vals = vals;
     this.setData({ loading: false });
     this.renderLayer(this.data.layer);
+    this.updateVerdict();
+  },
+
+  // 用本图云量判断是否会出现朝霞 / 晚霞，并把判断过程整理成可读的步骤
+  updateVerdict() {
+    const grid = this._grid;
+    const vals = this._vals;
+    if (!grid || !vals) return;
+
+    const v = skymap.evaluatePath(grid, vals, {
+      sunElevationDeg: this._ctx.sunElevation,
+      cloudTotal: vals.total[0]
+    });
+
+    const pct = x => `${Math.round(x * 100)}%`;
+    const fx = x => Number(x).toFixed(2);
+    const mark = ok => (ok ? '✓ 被照亮' : '✗ 在阴影中');
+    const az = Math.round(this._ctx.bearing);
+
+    this.setData({
+      verdict: {
+        level: v.level,
+        probPct: v.probPct,
+        score: fx(v.score),
+        kindLabel: this.data.isDawn ? '朝霞' : '晚霞'
+      },
+      logic: [
+        {
+          n: '①',
+          k: '照亮高度',
+          v: `太阳方位 ${az}°、高度角 ${v.sunElevationDeg}° → 云底高于 ${v.litKm.toFixed(1)}km 才被照亮；`
+            + `高云 ${v.layers.high.z}km ${mark(v.layers.high.lit)}、`
+            + `中云 ${v.layers.mid.z}km ${mark(v.layers.mid.lit)}、`
+            + `低云 ${v.layers.low.z}km ${mark(v.layers.low.lit)}`
+        },
+        {
+          n: '②',
+          k: '画布评分',
+          v: `地点上空 高云 ${pct(v.overhead.high)} / 中云 ${pct(v.overhead.mid)} / 低云 ${pct(v.overhead.low)}；`
+            + `被照亮云量并集 ${pct(v.litCloud)} → 钟形响应得分 ${fx(v.canvas)}`
+        },
+        {
+          n: '③',
+          k: '光路遮挡',
+          v: `沿 ${az}° 走廊 0–${skymap.MAX_KM}km 距离加权：低云 ${pct(v.path.low)} + `
+            + `${v.params.midCloudWeight}×中云 ${pct(v.path.mid)} = 遮挡 ${pct(v.path.block)} → 门控 ${fx(v.gate)}`
+        },
+        {
+          n: '④',
+          k: '合成与概率',
+          v: `Score = 门控 × 画布 = ${fx(v.gate)} × ${fx(v.canvas)} = ${fx(v.score)}；`
+            + `P = σ(${v.params.probK}×(Score−${v.params.probTheta})) = ${v.probPct}%`
+        }
+      ]
+    });
   },
 
   onSwitchLayer(e) {
@@ -214,9 +278,7 @@ Page({
 
     grid.cells.forEach(cell => {
       const corners = cell.corners;
-      let v = 0;
-      for (let i = 0; i < corners.length; i++) v += vals[corners[i]] || 0;
-      v /= corners.length;
+      const v = skymap.cellMean(cell, vals);
 
       sum += v;
       if (v > max) max = v;

@@ -12,6 +12,7 @@
     <view class="source-switch">
       <view class="source-option {{dataSource === 'ec' ? 'active' : ''}}" data-src="ec" bindtap="onSwitchSource">ECMWF</view>
       <view class="source-option {{dataSource === 'gfs' ? 'active' : ''}}" data-src="gfs" bindtap="onSwitchSource">GFS</view>
+      <view class="source-option {{dataSource === 'icon' ? 'active' : ''}}" data-src="icon" bindtap="onSwitchSource">ICON</view>
     </view>
   </view>
 

@@ -6,6 +6,13 @@
 .h-main { flex: 1; min-width: 0; }
 .h-title { font-size: 15px; color: #e6eef8; font-weight: 700; }
 .h-sub { font-size: 11px; color: #667a90; margin-top: 2px; }
+.h-badge {
+  flex: none; display: flex; flex-direction: column; align-items: center;
+  padding: 4px 9px; border-radius: 8px;
+  background: #0c1220; border: 1px solid rgba(120, 160, 200, 0.18);
+}
+.hb-p { font-size: 13px; color: #e6eef8; font-weight: 700; line-height: 1.1; }
+.hb-l { font-size: 9px; color: #667a90; margin-top: 1px; }
 
 .h-note {
   font-size: 11px; color: #8899bb; line-height: 1.6;
@@ -55,4 +62,38 @@
 
 .foot-note {
   margin-top: 12px; font-size: 10px; color: #556680; line-height: 1.7;
+}
+
+/* 判断逻辑 */
+.logic {
+  margin-top: 14px; padding: 12px;
+  background: #0c1220; border-radius: 12px;
+  border: 1px solid rgba(120, 160, 200, 0.14);
+}
+.l-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding-bottom: 8px; border-bottom: 1px solid rgba(120, 160, 200, 0.10);
+}
+.l-title { font-size: 12px; color: #e6eef8; font-weight: 700; }
+.l-prob { font-size: 11px; color: #5b9bd5; font-weight: 700; white-space: nowrap; }
+
+.l-row { display: flex; gap: 7px; margin-top: 9px; }
+.l-n { font-size: 12px; color: #5b9bd5; line-height: 1.5; flex: none; }
+.l-body { flex: 1; min-width: 0; }
+.l-k { display: block; font-size: 11px; color: #aac8e0; font-weight: 600; }
+.l-v { display: block; font-size: 10px; color: #7789a6; line-height: 1.7; margin-top: 2px; }
+
+.l-concl {
+  display: flex; align-items: baseline; gap: 7px;
+  margin-top: 10px; padding: 8px 10px;
+  background: #0a1020; border-radius: 8px;
+  border-left: 2px solid #5b9bd5;
+}
+.l-concl-k { font-size: 10px; color: #667a90; flex: none; }
+.l-concl-v { font-size: 11px; color: #c0d0e0; line-height: 1.6; }
+
+.l-note {
+  margin-top: 10px; padding-top: 8px;
+  border-top: 1px solid rgba(120, 160, 200, 0.10);
+  font-size: 10px; color: #556680; line-height: 1.7;
 }

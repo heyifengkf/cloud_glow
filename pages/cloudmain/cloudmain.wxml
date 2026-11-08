@@ -23,6 +23,7 @@
     <view class="src-toggle">
       <view class="src-seg {{dataSource === 'ec' ? 'active' : ''}}" data-src="ec" bindtap="onSwitchSource">ECMWF</view>
       <view class="src-seg {{dataSource === 'gfs' ? 'active' : ''}}" data-src="gfs" bindtap="onSwitchSource">GFS</view>
+      <view class="src-seg {{dataSource === 'icon' ? 'active' : ''}}" data-src="icon" bindtap="onSwitchSource">ICON</view>
     </view>
     <view class="range-inline"><text>🕒</text><text>{{infoRange}}</text></view>
   </view>
@@ -51,6 +52,11 @@
     </view>
   </view>
   <view class="legend-note">剖面按低/中/高三档等分高度渲染（0–2 / 2–5 / 5–10km），5km 以上统一归入高云区</view>
+
+  <view class="data-note">
+    <view class="data-note-item">能见度：Open-Meteo 最佳匹配源（不随模型切换）</view>
+    <view class="data-note-item">气溶胶：Open-Meteo 空气质量接口 · CAMS（不随模型切换）</view>
+  </view>
 
   <!-- <view class="footer">数据来自 Open-Meteo · Copyright © Yifeng </view> -->
   <view class="footer">Copyright © Yifeng </view>
