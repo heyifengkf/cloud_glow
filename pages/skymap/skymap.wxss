@@ -53,12 +53,21 @@
 .status.err { color: #e08a8a; line-height: 1.6; }
 
 .legend { margin-top: 12px; }
-.legend-bar { height: 8px; border-radius: 999px; }
+.legend-bar-wrap { position: relative; height: 22px; }
+.legend-bar {
+  position: absolute; left: 0; right: 0; top: 50%;
+  transform: translateY(-50%);
+  height: 8px; border-radius: 999px;
+}
+.legend-slider {
+  position: absolute; left: -6px; right: -6px; top: 50%;
+  transform: translateY(-50%); margin: 0;
+}
 .legend-txt {
   display: flex; justify-content: space-between; gap: 8px;
   margin-top: 5px; font-size: 10px; color: #667a90;
 }
-.legend-txt text:nth-child(2) { color: #556680; }
+.legend-txt text:nth-child(2) { color: #aac8e0; }
 
 .foot-note {
   margin-top: 12px; font-size: 10px; color: #556680; line-height: 1.7;

@@ -70,7 +70,8 @@ Page({
     verdict: null,
     logic: [],
     srcLabel: 'ECMWF',
-    legendGradient: skymap.legendGradient('low')
+    legendGradient: skymap.legendGradient('low'),
+    cloudMin: 5
   },
 
   onLoad(options) {
@@ -266,10 +267,27 @@ Page({
     this.renderLayer(layer);
   },
 
+  // 云量阈值滑块：拖动中更新提示，松手后按阈值重绘地图覆盖
+  onCloudMinChanging(e) {
+    const v = Number(e.detail.value);
+    if (!Number.isFinite(v)) return;
+    this.setData({ cloudMin: v });
+  },
+
+  onCloudMinChange(e) {
+    const v = Number(e.detail.value);
+    if (!Number.isFinite(v)) return;
+    this.setData({ cloudMin: v });
+    this.renderLayer(this.data.layer);
+  },
+
   renderLayer(layer) {
     const grid = this._grid;
     const vals = this._vals && this._vals[layer];
     if (!grid || !vals) return;
+
+    // 云量阈值（0~1）：低于该值的云不显示（统计仍按 5% 口径）
+    const minCover = Number(this.data.cloudMin) / 100 || 0;
 
     const polygons = [];
     let sum = 0;
@@ -284,7 +302,7 @@ Page({
       if (v > max) max = v;
       if (v >= 0.05) covered++;
 
-      const fillColor = skymap.cloudColor(v, layer);
+      const fillColor = skymap.cloudColor(v, layer, minCover);
       if (!fillColor) return;
       polygons.push({
         points: corners.map(i => ({

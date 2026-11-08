@@ -91,9 +91,10 @@ function corridorCenter(lat, lon, bearingDeg) {
   return destination(lat, lon, bearingDeg, MAX_KM * 0.45);
 }
 
-// 云量 0~1 → map 组件可用的 8 位十六进制颜色；低于 5% 视为无云
-function cloudColor(v, layer) {
-  if (!(v >= 0.05)) return '';
+// 云量 0~1 → map 组件可用的 8 位十六进制颜色；低于阈值（默认 5%）视为无云
+function cloudColor(v, layer, min) {
+  const m = (min === undefined ? 0.05 : min);
+  if (!(v >= m)) return '';
   const c = LAYER_COLORS[layer] || LAYER_COLORS.low;
   const a = Math.round(Math.min(0.82, 0.10 + v * 0.72) * 255);
   return '#' + c.map(x => x.toString(16).padStart(2, '0')).join('')

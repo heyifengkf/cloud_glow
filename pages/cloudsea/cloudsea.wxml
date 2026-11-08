@@ -1,0 +1,90 @@
+<view class="app">
+  <view class="brand">
+    <view class="brand-icon">🌊</view>
+    <view>
+      <view class="title">云海预测</view>
+      <view class="subtitle">云顶低于观测点海拔 · 逆温稳定的概率评估</view>
+    </view>
+  </view>
+
+  <view class="info top-info">
+    <view class="pill location-pill">📍 <text class="location-name">{{locName}}</text></view>
+    <view class="source-switch">
+      <view class="source-option {{dataSource === 'ec' ? 'active' : ''}}" data-src="ec" bindtap="onSwitchSource">ECMWF</view>
+      <view class="source-option {{dataSource === 'gfs' ? 'active' : ''}}" data-src="gfs" bindtap="onSwitchSource">GFS</view>
+      <view class="source-option {{dataSource === 'icon' ? 'active' : ''}}" data-src="icon" bindtap="onSwitchSource">ICON</view>
+    </view>
+  </view>
+
+  <view class="elevation-line">观测点海拔 <text class="elev-val">{{elevation}}</text></view>
+
+  <view class="state" wx:if="{{loading}}">预测中...</view>
+  <view class="state err" wx:elif="{{error}}">{{error}}</view>
+
+  <block wx:else>
+    <view class="card best">
+      <view class="card-head">
+        <view class="card-icon">⛰️</view>
+        <view class="card-title">
+          <view class="ct-main">未来 24 小时最佳窗口</view>
+          <view class="ct-sub">{{best24h.time}}</view>
+        </view>
+        <view class="badge">{{best24h.level}}</view>
+      </view>
+      <view class="metrics">
+        <view class="metric">
+          <view class="m-val">{{best24h.probPct}}<text class="m-unit">%</text></view>
+          <view class="m-label">峰值概率</view>
+          <view class="bar"><view class="bar-fill" style="width:{{best24h.probPct}}%"></view></view>
+        </view>
+      </view>
+
+      <view class="detail">
+        <view class="d-row {{ri % 2 === 0 ? 'd-l' : 'd-r'}}" wx:for="{{factors}}" wx:for-item="row" wx:for-index="ri" wx:key="k">
+          <text class="d-k">{{row.k}}</text>
+          <text class="d-v">{{row.v}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="card alt-chart">
+      <view class="tl-title">未来 24 小时 海拔 · 云层高度</view>
+      <canvas type="2d" id="altCanvas" class="alt-canvas" style="width:100%;height:220px"></canvas>
+      <view class="alt-legend">
+        <view class="alt-legend-item"><view class="alt-dot el"></view><text>观测点海拔</text></view>
+      </view>
+      <view class="alt-scale">
+        <text class="alt-scale-title">云层含量</text>
+        <view class="alt-scale-row">
+          <text class="alt-scale-end">5%</text>
+          <view class="alt-scale-track">
+            <view class="alt-scale-bar"></view>
+            <slider
+              class="alt-slider"
+              min="5" max="100" step="1" value="{{cloudMin}}"
+              activeColor="rgba(0,0,0,0)" backgroundColor="rgba(0,0,0,0)"
+              block-size="18" block-color="#ffffff"
+              bindchanging="onCloudMinChanging" bindchange="onCloudMinChange"/>
+          </view>
+          <text class="alt-scale-end">100%</text>
+        </view>
+        <view class="alt-scale-hint">显示云量 ≥ {{cloudMin}}% 的云层</view>
+      </view>
+    </view>
+
+    <view class="card timeline">
+      <view class="tl-title">未来 24 小时逐时概率</view>
+      <view class="tl-bars">
+        <view class="tl-col" wx:for="{{bars}}" wx:for-item="b" wx:key="key">
+          <view class="tl-bar-track">
+            <view class="tl-bar" style="height:{{b.probPct}}%"></view>
+          </view>
+          <text class="tl-h">{{b.time}}</text>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <view class="data-note">云海指数由云顶高度、云量、逆温强度、近地面湿度与地面风速共同计算，海拔取自 90m 分辨率 DEM。</view>
+  <view class="footer">Copyright © Yifeng </view>
+</view>

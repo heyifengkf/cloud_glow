@@ -103,6 +103,42 @@ const fetchData = async (lat, lon, model = 'ec') => {
   return j1;
 };
 
+// 观测点海拔（Copernicus DEM，约 90m 分辨率）。返回米数，失败返回 null。
+const fetchElevation = async (lat, lon) => {
+  const url = `https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lon}&_=${Date.now()}`;
+  const j = await getJSON(url);
+  if (j && Array.isArray(j.elevation) && j.elevation.length && Number.isFinite(j.elevation[0])) {
+    return j.elevation[0];
+  }
+  return null;
+};
+
+// 云海预测：各气压层的云量/相对湿度/温度/位势高度 + 地面风速与近地面湿度。
+// 返回的 j.hourly 含 time 与上述字段，并在 j._levels 上挂载所用气压层（从近地面到高空）。
+const fetchSeaCloudData = async (lat, lon, model = 'ec') => {
+  const key = LEVELS_HPAS[model] ? model : 'ec';
+  const levels = LEVELS_HPAS[key];
+  const lv = name => levels.map(h => `${name}_${h}hPa`).join(',');
+  const vars = [
+    lv('cloud_cover'),
+    lv('relative_humidity'),
+    lv('temperature'),
+    lv('geopotential_height'),
+    'wind_speed_10m',
+    'relative_humidity_2m'
+  ].join(',');
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
+    + `&hourly=${vars}&models=${API_MODEL[key]}&forecast_hours=${FORECAST_HOURS}&timezone=auto&_=${Date.now()}`;
+
+  const j = await getJSON(url);
+  if (!j || !j.hourly || !j.hourly.time || !j.hourly.time.length) {
+    console.warn('[request] 云海数据无效', key, j && j.reason);
+    return null;
+  }
+  j._levels = levels;
+  return j;
+};
+
 // 光线路径云图：一次请求取多个采样点的逐小时云量。
 // points: [{ latitude, longitude }]；dateStr: 'YYYY-MM-DD'（站点当地日期）
 // 只取当天 24 小时，响应体积远小于完整预报；返回数组顺序与 points 一致。
@@ -134,6 +170,8 @@ module.exports = {
   reverseGeocode,
   fetchData,
   fetchCloudGrid,
+  fetchElevation,
+  fetchSeaCloudData,
   LEVELS_HPAS,
   API_MODEL,
   FORECAST_HOURS

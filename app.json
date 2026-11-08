@@ -2,6 +2,7 @@
   "pages": [
     "pages/cloudmain/cloudmain",
     "pages/cloudglow/cloudglow",
+    "pages/cloudsea/cloudsea",
     "pages/skymap/skymap"
   ],
   "window": {
@@ -32,6 +33,10 @@
       {
         "pagePath": "pages/cloudglow/cloudglow",
         "text": "火烧云"
+      },
+      {
+        "pagePath": "pages/cloudsea/cloudsea",
+        "text": "云海"
       }
     ]
   }
